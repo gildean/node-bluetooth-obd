@@ -1,32 +1,9 @@
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * (C) Copyright 2013, TNO
- * Author: Eric Smekens
- */
-
 'use strict';
-//Used for event emitting.
-var EventEmitter = require('events').EventEmitter;
+
 var Transform = require('stream').Transform;
 var util = require('util');
 var OBDStream = require('./obdstream');
 var BluetoothSerialPort = require('bluetooth-serial-port');
-
-/**
- * obdInfo.js for all PIDS.
- * @type {*}
- */
 var PIDS = require('./pids/index');
 
 /**
@@ -64,12 +41,11 @@ function OBDReader() {
  * Attempts discovery of and subsequent connection to Bluetooth device and channel
  * @param {string} query Query string to be fuzzy-ish matched against device name/address
  */
-OBDReader.prototype.autoconnect = function autoconnect(query,callback) {
-    this.searchDevices(query, true, function (err, address, channel) {
+OBDReader.prototype.autoconnect = function autoconnect(query, callback) {
+    return this.searchDevices(query, true, function (err, address, channel) {
         if (err) return callback(err);
-        self.connect(address, channel, callback);
+        return self.connect(address, channel, callback);
     });
-    return this;
 };
 
 /**
@@ -91,7 +67,7 @@ OBDReader.prototype.searchDevices = function searchDevices(query, first, callbac
                 if (err) return self.emit('debug', err);
                 self.emit('debug', 'Found device channel: ' + channel);
                 if (first) {
-                    self.btSerial.removeAllListeners('found').removeAllListeners('finished');
+                    self.btSerial.removeAllListeners();
                     return callback(null, address, channel);
                 }
                 reply.push({address: address, channel: channel});
@@ -105,6 +81,7 @@ OBDReader.prototype.searchDevices = function searchDevices(query, first, callbac
         if (first && err) return callback(err, null, null);
         return callback(err, reply);
     }).inquire();
+    return this;
 };
 
 /**
@@ -124,7 +101,7 @@ OBDReader.prototype.connect = function connect(address, channel, callback) {
             return callback(err);
         }
         self.connected = true;
-        self.pipe(self.btSerial).pipe(self.streamParser);
+        self.pipe(self.btSerial).pipe(self.streamParser.reset());
         self.write('ATZ');
         //Turns off extra line feed and carriage return
         self.write('ATL0');
@@ -152,9 +129,7 @@ OBDReader.prototype.connect = function connect(address, channel, callback) {
  */
 OBDReader.prototype.disconnect = function disconnect() {
     clearTimeout(this.writeTo);
-    this.stopPolling();
-    this.queue = []; //Clears queue
-    this.btSerial.disconnect();
+    this.stopPolling().resetQueue().btSerial.disconnect();
     this.connected = false;
     return this;
 };
@@ -177,6 +152,7 @@ OBDReader.prototype._writeToBluetooth = function _writeToBluetooth() {
     this.writing = true;
     if (!this.connected) return this.emit('error', new Error('Bluetooth device is not connected.'));
     this.push(new Buffer(this.queue.shift(), "utf-8"));
+    return this;
 };
 
 /**
@@ -220,12 +196,14 @@ OBDReader.prototype._setPollerTimeout = function _setPollerTimeout() {
     var delay = this.POLLINTERVAL - (this.polling - previousPoll);
     if (delay <= 0) return this._writePollers();
     this.pollTo = setTimeOut(function () { self._writePollers(); }, delay);
+    return this;
 };
 
 OBDReader.prototype._writePollers = function _writePollers() {
     this.pollTo = null;
     var self = this;
     this.activePollers.forEach(function (poller) { self.write({message: poller, replies: 1}) });
+    return this;
 };
 
 /**
@@ -245,7 +223,7 @@ OBDReader.prototype.addPoller = function addPoller(name) {
  */
 OBDReader.prototype.removePoller = function removePoller(name) {
     var index = this.activePollers.indexOf(PIDS.PIDNAMEMAP[name]);
-    this.activePollers.splice(index, 1);
+    if (index > -1) this.activePollers.splice(index, 1);
     return this;
 };
 
@@ -254,9 +232,8 @@ OBDReader.prototype.removePoller = function removePoller(name) {
  * @this {OBDReader}
  */
 OBDReader.prototype.removeAllPollers = function removeAllPollers() {
-    this.stopPolling();
     while (this.activePollers.length) this.activePollers.pop();
-    return this;
+    return this.stopPolling();
 };
 
 /**
@@ -267,8 +244,7 @@ OBDReader.prototype.removeAllPollers = function removeAllPollers() {
  */
 OBDReader.prototype.startPolling = function startPolling(interval) {
     this.POLLINTERVAL = interval || this.activePollers.length * 75;
-    this._setPollerTimeout();
-    return this;
+    return this._setPollerTimeout();
 };
 
 /**

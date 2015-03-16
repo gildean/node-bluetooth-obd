@@ -8,10 +8,16 @@ require('util').inherits(OBDStream, Transform);
 function OBDStream() {
     if (!(this instanceof OBDStream)) return new OBDStream();
     Transform.call(this, { readableObjectMode: true });
-    this._isReset = false;
+    this._reset = true;
     this._buffer = '';
     this._decoder = new StringDecoder('utf8');
 }
+
+OBDStream.prototype.reset = function reset() {
+    this._reset = true;
+    this._buffer = '';
+    return this;
+};
 
 OBDStream.prototype._transform = function _transform(chunk, encoding, cb) {
     this._buffer += this._decoder.write(chunk);
@@ -39,8 +45,8 @@ OBDStream.prototype._transform = function _transform(chunk, encoding, cb) {
  */
 OBDStream.prototype._parseOBDCommand = function parseOBDCommand(commandString) {
     var reply = {};
-    if (!this._isReset || commandString === "OK" || commandString === "NO DATA" || commandString === "?") { //No data or OK is the response.
-        this._isReset = true;
+    if (this._reset || commandString === "OK" || commandString === "NO DATA" || commandString === "?") { //No data or OK is the response.
+        this._reset = false;
         reply.value = commandString;
         return reply;
     }

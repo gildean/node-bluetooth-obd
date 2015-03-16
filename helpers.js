@@ -1,3 +1,7 @@
+'use strict';
+
+var DTCS = require('./dtc.json');
+
 function bitDecoder(bytes) {
     return parseInt(bytes, 2);
 }
@@ -19,29 +23,25 @@ function convertDTCCheck(bytesArr) {
     return reply;
 }
 
+function decodeFirstChar(firstCharBytes) {
+    switch(firstCharBytes) {
+        case 0: return 'P';
+        case 1: return 'C';
+        case 2: return 'B';
+        case 3: return 'U';
+        default:
+            console.log('Error with DTC');
+            return null;
+    }
+}
+
 function decodeDTCCode(byteOne, byteTwo) {
     //If 00 00 --> No code.
     if (byteOne === '00' && byteTwo === '00') return '-';
-    var firstChar;
     var firstByte = parseInt(byteOne, 16);
     var firstCharBytes = firstByte >> 6;
-    switch(firstCharBytes) {
-        case 0:
-            firstChar = 'P';
-            break;
-        case 1:
-            firstChar = 'C';
-            break;
-        case 2:
-            firstChar = 'B';
-            break;
-        case 3:
-            firstChar = 'U';
-            break;
-        default:
-            console.log('Error with DTC');
-            break;
-    }
+    var firstChar = decodeFirstChar(firstCharBytes);
+    if (!firstChar) return null;
     var secondChar = (firstByte >> 4) % 4;
     var thirdChar = firstByte % 16;
     var codeString = firstChar + secondChar + thirdChar + byteTwo;
