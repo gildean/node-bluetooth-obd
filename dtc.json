@@ -1556,7 +1556,6 @@
     "P2576": "Direct Ozone Reduction Catalyst Deterioration Sensor Circuit Intermittent/Erratic",
     "P2577": "Direct Ozone Reduction Catalyst Efficiency Below Threshold",
     "P2600": "Coolant Pump Control Circuit/Open",
-    "P2600": "Coolant Pump Control Circuit/Open",
     "P2601": "Coolant Pump Control Circuit Range/Performance",
     "P2602": "Coolant Pump Control Circuit Low",
     "P2603": "Coolant Pump Control Circuit High",
@@ -2083,4 +2082,4 @@
     "U0429": "Invalid Data Received From Steering Column Control Module",
     "U0430": "Invalid Data Received From Tire Pressure Monitor Module",
     "U0431": "Invalid Data Received From Body Control Module \"A\""
-};
+}
